@@ -1,0 +1,31 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-[#F0F4FF] text-[#1E1B4B] font-sans antialiased;
+    background-image: 
+      radial-gradient(at 0% 0%, rgba(232, 240, 254, 0.5) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(243, 232, 255, 0.5) 0px, transparent 50%);
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-white/60 backdrop-blur-[20px] border border-white/80 shadow-[0_8px_32px_rgba(99,102,241,0.1)] rounded-2xl;
+  }
+  .glass-panel {
+    @apply bg-white/70 backdrop-blur-[20px] border-r border-white/90;
+  }
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-br from-primary to-secondary;
+  }
+  .bg-gradient-primary {
+    @apply bg-gradient-to-br from-primary to-secondary;
+  }
+}
