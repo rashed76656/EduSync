@@ -16,7 +16,7 @@ import profilePic from '../../assets/profile.png';
 export default function Fees() {
   const { user } = useAuthStore();
   const { students, fetchStudents } = useStudents();
-  const { fetchStudentFees, recordFee, isLoading: isFeesLoading } = useFees();
+  const { fetchStudentFees, recordFee, updateFeeStatus, isLoading: isFeesLoading } = useFees();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
@@ -26,6 +26,7 @@ export default function Fees() {
   const [amount, setAmount] = useState('');
   const [purpose, setPurpose] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'Mobile Banking' | 'Bank'>('Cash');
+  const [status, setStatus] = useState<FeeTransaction['status']>('Paid');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
@@ -61,6 +62,7 @@ export default function Fees() {
       amount: numAmount,
       purpose,
       paymentMethod,
+      status,
       date,
       recordedBy: user?.uid || 'unknown'
     });
@@ -71,6 +73,7 @@ export default function Fees() {
       setAmount('');
       setPurpose('');
       setPaymentMethod('Cash');
+      setStatus('Paid');
     }
   };
 
@@ -179,6 +182,20 @@ export default function Fees() {
                   ]}
                 />
 
+                <Select
+                  label="Payment Status"
+                  required
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value as any)}
+                  options={[
+                    { label: 'Paid / Received', value: 'Paid' },
+                    { label: 'Due / Pending', value: 'Due' },
+                    { label: 'Processing', value: 'Pending' },
+                    { label: 'Transaction Complete', value: 'Complete' },
+                    { label: 'Failed / Bounced', value: 'Failed' },
+                  ]}
+                />
+
                 <Input
                   label="Transaction Date"
                   type="date"
@@ -245,6 +262,7 @@ export default function Fees() {
                         <th className="px-6 py-5">Date</th>
                         <th className="px-6 py-5">Description</th>
                         <th className="px-6 py-5">Method</th>
+                        <th className="px-6 py-5">Status</th>
                         <th className="px-6 py-5 text-right">Credit Amount</th>
                       </tr>
                     </thead>
@@ -272,6 +290,29 @@ export default function Fees() {
                               <span className="inline-flex items-center px-3 py-1 rounded-full bg-white border border-gray-100 text-[10px] font-bold text-gray-500 uppercase tracking-widest shadow-sm">
                                 {t.paymentMethod}
                               </span>
+                            </td>
+                            <td className="px-6 py-5">
+                               <select
+                                 value={t.status}
+                                 onChange={async (e) => {
+                                   const success = await updateFeeStatus(t.id, e.target.value as any);
+                                   if (success) {
+                                      const history = await fetchStudentFees(selectedStudent.id);
+                                      setTransactions(history);
+                                   }
+                                 }}
+                                 className={`text-[9px] font-black uppercase tracking-widest border-0 bg-transparent focus:ring-0 cursor-pointer rounded-lg px-2 py-1 transition-all ${
+                                    t.status === 'Paid' || t.status === 'Complete' ? 'text-success' : 
+                                    t.status === 'Due' ? 'text-amber-500' :
+                                    t.status === 'Failed' ? 'text-danger' : 'text-primary'
+                                 }`}
+                               >
+                                 <option value="Paid">Paid</option>
+                                 <option value="Complete">Complete</option>
+                                 <option value="Due">Due</option>
+                                 <option value="Pending">Pending</option>
+                                 <option value="Failed">Failed</option>
+                               </select>
                             </td>
                             <td className="px-6 py-5 text-right font-mono font-bold text-gray-900 text-base">
                               ৳ {t.amount.toLocaleString()}

@@ -77,6 +77,8 @@ export interface ResultRecord {
   createdAt: Timestamp | Date;
 }
 
+export type FeeStatus = 'Paid' | 'Due' | 'Complete' | 'Pending' | 'Failed';
+
 export interface FeeTransaction {
   id: string;
   teacherId: string;
@@ -85,6 +87,7 @@ export interface FeeTransaction {
   date: string; // YYYY-MM-DD
   purpose: string;
   paymentMethod: 'Cash' | 'Mobile Banking' | 'Bank';
+  status: FeeStatus;
   recordedBy: string;
   createdAt: Timestamp | Date;
 }

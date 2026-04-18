@@ -81,5 +81,23 @@ export function useFees() {
     }
   }, [user]);
 
-  return { isLoading, fetchStudentFees, fetchAllFees, recordFee };
+  const updateFeeStatus = useCallback(async (transactionId: string, status: FeeTransaction['status']) => {
+    if (!user) return false;
+    setIsLoading(true);
+    try {
+      const { doc, updateDoc } = await import('firebase/firestore');
+      const docRef = doc(db, 'fees', transactionId);
+      await updateDoc(docRef, { status });
+      toast.success(`Status updated to ${status}`);
+      return true;
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to update status');
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user]);
+
+  return { isLoading, fetchStudentFees, fetchAllFees, recordFee, updateFeeStatus };
 }
