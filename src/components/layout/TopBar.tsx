@@ -6,6 +6,7 @@ import { useStudents } from '../../hooks/useStudents';
 import { useNotifications } from '../../hooks/useNotifications';
 import { cn } from '../../utils/cn';
 import NotificationDropdown from '../shared/NotificationDropdown';
+import profilePic from '../../assets/profile.png';
 
 interface TopBarProps {
   onOpenMenu: () => void;
@@ -130,7 +131,7 @@ export default function TopBar({ onOpenMenu }: TopBarProps) {
                         className="flex items-center w-full p-3 rounded-xl hover:bg-primary/10 group transition-all"
                       >
                         <div className="w-10 h-10 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden transition-all group-hover:border-primary/20">
-                          <img src="/src/assets/profile.png" alt="Profile" className="w-full h-full object-cover" />
+                          <img src={profilePic} alt="Profile" className="w-full h-full object-cover" />
                         </div>
                         <div className="ml-3 text-left">
                           <p className="text-sm font-semibold text-gray-900 group-hover:text-primary transition-colors">

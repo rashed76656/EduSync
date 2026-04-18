@@ -11,6 +11,7 @@ import { useStudents } from '../../hooks/useStudents';
 import { useFees } from '../../hooks/useFees';
 import { useAuthStore } from '../../store/authStore';
 import type { Student, FeeTransaction } from '../../types';
+import profilePic from '../../assets/profile.png';
 
 export default function Fees() {
   const { user } = useAuthStore();
@@ -204,7 +205,7 @@ export default function Fees() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 relative z-10">
                   <div className="flex items-center gap-5">
                     <div className="w-16 h-16 rounded-3xl bg-white border border-gray-100 flex items-center justify-center overflow-hidden shadow-xl">
-                      <img src="/src/assets/profile.png" alt="Profile" className="w-full h-full object-cover" />
+                      <img src={profilePic} alt="Profile" className="w-full h-full object-cover" />
                     </div>
                     <div>
                       <h2 className="text-2xl font-bold text-gray-900 font-display tracking-tight">{selectedStudent.name}</h2>

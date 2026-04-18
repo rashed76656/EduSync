@@ -16,6 +16,7 @@ import { useAuthStore } from '../../store/authStore';
 import { Badge } from '../../components/ui/Badge';
 import type { Semester, Department } from '../../types';
 import toast from 'react-hot-toast';
+import profilePic from '../../assets/profile.png';
 
 export default function GlobalStudents() {
   const { user } = useAuthStore();
@@ -244,7 +245,7 @@ export default function GlobalStudents() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-3">
                          <div className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center border border-rose-50 group-hover:scale-110 transition-transform overflow-hidden">
-                            <img src="/src/assets/profile.png" className="w-full h-full object-cover" />
+                            <img src={profilePic} className="w-full h-full object-cover" />
                          </div>
                          <div>
                             <p className="text-sm font-black text-gray-900 group-hover:text-rose-600 transition-colors">{student.name}</p>

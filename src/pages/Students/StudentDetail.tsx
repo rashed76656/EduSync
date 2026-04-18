@@ -12,6 +12,7 @@ import { cn } from '../../utils/cn';
 import type { Student, AttendanceRecord, ResultRecord } from '../../types';
 import { format } from 'date-fns';
 import EditStudentModal from './EditStudentModal';
+import profilePic from '../../assets/profile.png';
 
 export default function StudentDetail() {
   const { id } = useParams<{ id: string }>();
@@ -125,7 +126,7 @@ export default function StudentDetail() {
             <div className="flex items-end gap-5">
               <div className="w-24 h-24 rounded-full bg-white p-1.5 shadow-lg relative z-10">
                 <div className="w-full h-full rounded-full bg-gray-50 overflow-hidden flex items-center justify-center border border-gray-100">
-                  <img src="/src/assets/profile.png" alt="Profile" className="w-full h-full object-cover" />
+                  <img src={profilePic} alt="Profile" className="w-full h-full object-cover" />
                 </div>
               </div>
               <div className="mb-2 pb-1">

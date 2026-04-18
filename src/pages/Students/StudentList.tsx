@@ -9,6 +9,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { TableSkeleton } from '../../components/ui/Skeleton';
 import AddStudentModal from './AddStudentModal';
 import { useStudents } from '../../hooks/useStudents';
+import profilePic from '../../assets/profile.png';
 
 export default function StudentList() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -155,7 +156,7 @@ export default function StudentList() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden shadow-sm border border-gray-100 flex items-center justify-center transition-all duration-300">
-                          <img src="/src/assets/profile.png" alt="Profile" className="w-full h-full object-cover" />
+                          <img src={profilePic} alt="Profile" className="w-full h-full object-cover" />
                         </div>
                         <div>
                           <p className="font-bold text-gray-900 group-hover:text-primary transition-colors">{student.name}</p>

@@ -18,6 +18,7 @@ import { generateStudentTranscript, generateAttendanceCertificate } from '../../
 import { db } from '../../lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import toast from 'react-hot-toast';
+import profilePic from '../../assets/profile.png';
 
 export default function AdminReports() {
   const { branding } = useAuthStore();
@@ -133,7 +134,7 @@ export default function AdminReports() {
                      }`}
                    >
                      <div className="w-12 h-12 rounded-2xl bg-white border border-gray-100 p-0.5 overflow-hidden shadow-sm shrink-0">
-                        <img src="/src/assets/profile.png" className="w-full h-full object-cover" />
+                        <img src={profilePic} className="w-full h-full object-cover" />
                      </div>
                      <div className="text-left flex-1 min-w-0">
                         <p className="text-sm font-black truncate uppercase tracking-tight">{s.name}</p>

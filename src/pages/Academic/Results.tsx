@@ -13,6 +13,7 @@ import { calculateGrade } from '../../lib/grading';
 import { useAuthStore } from '../../store/authStore';
 import type { ResultRecord } from '../../types';
 import toast from 'react-hot-toast';
+import profilePic from '../../assets/profile.png';
 
 export default function Results() {
   const { user } = useAuthStore();
@@ -269,7 +270,7 @@ export default function Results() {
                             <td className="px-6 py-4">
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 rounded-full bg-gray-50 shadow-sm border border-gray-100 flex items-center justify-center overflow-hidden transition-all">
-                                        <img src="/src/assets/profile.png" alt="Profile" className="w-full h-full object-cover" />
+                                        <img src={profilePic} alt="Profile" className="w-full h-full object-cover" />
                                     </div>
                                     <p className="font-bold text-gray-900 group-hover:text-primary transition-colors">{student.name}</p>
                                 </div>

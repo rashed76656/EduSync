@@ -13,6 +13,7 @@ import { useAttendance } from '../../hooks/useAttendance';
 import { useAuthStore } from '../../store/authStore';
 import type { AttendanceStatus, AttendanceRecord } from '../../types';
 import toast from 'react-hot-toast';
+import profilePic from '../../assets/profile.png';
 
 export default function Attendance() {
   const { user } = useAuthStore();
@@ -255,7 +256,7 @@ export default function Attendance() {
                           <td className="px-6 py-4">
                               <div className="flex items-center gap-3">
                                   <div className="w-9 h-9 rounded-full bg-white shadow-sm border border-gray-100 flex items-center justify-center overflow-hidden">
-                                      <img src="/src/assets/profile.png" alt="Profile" className="w-full h-full object-cover" />
+                                      <img src={profilePic} alt="Profile" className="w-full h-full object-cover" />
                                   </div>
                                   <p className="font-bold text-gray-900 group-hover:text-primary transition-colors">{student.name}</p>
                               </div>
