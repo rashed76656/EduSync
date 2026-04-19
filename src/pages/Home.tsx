@@ -27,23 +27,31 @@ export default function Home() {
       const userSnap = await getDoc(userRef);
       
       if (!userSnap.exists()) {
-        // Create basic profile
-        await setDoc(userRef, {
+        const profile = {
           uid: user.uid,
           name: user.displayName || 'Unknown Teacher',
           email: user.email,
           photoURL: user.photoURL || '',
-          role: 'teacher',
+          role: 'teacher' as const,
           department: 'Unassigned',
           joinedAt: serverTimestamp(),
           lastLogin: serverTimestamp(),
-        });
+        };
+        await setDoc(userRef, profile);
+        toast.success(`Welcome to EduSync, ${profile.name}!`);
+        navigate('/dashboard');
       } else {
+        const userData = userSnap.data();
         await setDoc(userRef, { lastLogin: serverTimestamp() }, { merge: true });
+        toast.success(`Welcome back, ${userData.name || user.displayName || 'User'}!`);
+        
+        // Dynamic Redirection
+        if (userData.role === 'admin') {
+          navigate('/admin');
+        } else {
+          navigate('/dashboard');
+        }
       }
-
-      toast.success(`Welcome back, ${user.displayName || 'Teacher'}!`);
-      navigate('/dashboard');
     } catch (error: any) {
       console.error(error);
       toast.error(error.message || 'Failed to sign in with Google');
@@ -65,10 +73,19 @@ export default function Home() {
       // Update last login
       if (auth.currentUser) {
         const userRef = doc(db, 'users', auth.currentUser.uid);
+        const userSnap = await getDoc(userRef);
+        const userData = userSnap.data();
+        
         await setDoc(userRef, { lastLogin: serverTimestamp() }, { merge: true });
+        toast.success('Signed in successfully!');
+        
+        // Dynamic Redirection
+        if (userData?.role === 'admin') {
+          navigate('/admin');
+        } else {
+          navigate('/dashboard');
+        }
       }
-      toast.success('Signed in successfully!');
-      navigate('/dashboard');
     } catch (error: any) {
       console.error(error);
       toast.error('Invalid email or password');
@@ -125,7 +142,7 @@ export default function Home() {
             Smart Teaching <br /> Starts Here
           </h1>
           <p className="text-xl text-gray-800 font-medium max-w-lg mx-auto backdrop-blur-md bg-white/30 py-2 px-6 rounded-full border border-white/40">
-            রংপুর পলিটেকনিক ইন্সটিটিউট — শিক্ষক পোর্টাল
+            স্মার্ট এডুকেশন — ডিজিটাল শিক্ষক পোর্টাল
           </p>
         </div>
       </div>
@@ -178,7 +195,7 @@ export default function Home() {
             <form onSubmit={handleEmailSignIn} className="space-y-4 text-left">
               <Input
                 type="email"
-                placeholder="teacher@rangpurpoly.edu.bd"
+                placeholder="teacher@institute.edu.bd"
                 label="Email Address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -208,7 +225,7 @@ export default function Home() {
 
           <div className="mt-10 text-center">
             <p className="text-sm text-gray-400">
-              © {new Date().getFullYear()} Rangpur Polytechnic Institute
+              © {new Date().getFullYear()} EduSync Academic Platform
             </p>
           </div>
         </GlassCard>

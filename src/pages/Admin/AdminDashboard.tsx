@@ -65,7 +65,7 @@ export default function AdminDashboard() {
             <BarChart3 className="w-8 h-8 text-rose-600" />
             Admin Intelligence
           </h1>
-          <p className="text-gray-500 mt-1 font-medium">Global oversight of Rangpur Polytechnic Institute operations.</p>
+          <p className="text-gray-500 mt-1 font-medium">Global oversight of institutional operations.</p>
         </div>
         
         <div className="flex items-center gap-4">
