@@ -14,6 +14,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuthStore } from '../store/authStore';
+import { createStudentPortalAccount } from '../lib/adminService';
 import type { Student } from '../types';
 import toast from 'react-hot-toast';
 
@@ -73,6 +74,9 @@ export function useStudents() {
       const docRef = await addDoc(collection(db, 'students'), {
         ...studentData,
         teacherId: user.uid,
+        // Ensure portal fields default correctly
+        hasPortalAccess: studentData.hasPortalAccess ?? false,
+        examEligible: studentData.examEligible ?? true,
         createdAt: serverTimestamp()
       });
       toast.success('Student added successfully!');
@@ -110,6 +114,50 @@ export function useStudents() {
     }
   }, []);
 
+  // ─── Portal Access: Setup for existing or new students ─────
+  const setupPortalAccess = useCallback(async (
+    studentId: string,
+    studentName: string,
+    studentEmail: string,
+    secretCode: string,
+    studentRoll: string,
+    studentRegistration: string,
+    studentSemester: string,
+    department?: string,
+  ) => {
+    if (!user) throw new Error("Authentication required");
+    try {
+      const result = await createStudentPortalAccount({
+        studentName,
+        studentEmail,
+        studentRoll,
+        studentRegistration,
+        studentSemester,
+        secretCode,
+        studentId,
+        teacherId: user.uid,
+        department,
+      });
+
+      // Update local state if student is in current list
+      setStudents(prev => prev.map(s => 
+        s.id === studentId 
+          ? { ...s, hasPortalAccess: true, email: studentEmail, secretCode, uid: result.uid } 
+          : s
+      ));
+
+      toast.success(`Portal access enabled for ${studentName}!`);
+      return result;
+    } catch (err: any) {
+      console.error(err);
+      const errorMsg = err?.message?.includes('email-already-in-use')
+        ? 'This email is already registered. Try a different email.'
+        : 'Failed to setup portal access';
+      toast.error(errorMsg);
+      throw err;
+    }
+  }, [user]);
+
   return {
     students,
     isLoading,
@@ -118,6 +166,7 @@ export function useStudents() {
     getStudentById,
     addStudent,
     updateStudent,
-    deleteStudent
+    deleteStudent,
+    setupPortalAccess,
   };
 }

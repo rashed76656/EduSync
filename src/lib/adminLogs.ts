@@ -10,7 +10,8 @@ export type AdminLogAction =
   | 'DELETE_BROADCAST'
   | 'SEED_CURRICULUM'
   | 'UPDATE_SETTINGS'
-  | 'BULK_PROMOTION';
+  | 'BULK_PROMOTION'
+  | 'SYSTEM_MIGRATION';
 
 export interface AdminLog {
   adminUid: string;

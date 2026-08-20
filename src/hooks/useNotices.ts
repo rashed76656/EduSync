@@ -52,7 +52,7 @@ export function useNotices() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [user]);
 
   const addNotice = async (data: Omit<Notice, 'id' | 'createdAt' | 'teacherId'>) => {
     if (!user) return;

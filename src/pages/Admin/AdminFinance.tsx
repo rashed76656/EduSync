@@ -70,7 +70,7 @@ export default function AdminFinance() {
             <div className="flex items-center justify-between mb-8">
                <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest flex items-center gap-2">
                  <BarChart className="w-4 h-4 text-emerald-500" />
-                 Collections by Purpose
+                 Collections by Type
                </h3>
                <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase">
                   <Calendar className="w-3 h-3" /> All Time
@@ -84,7 +84,7 @@ export default function AdminFinance() {
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <ReBarChart data={stats.byPurpose}>
+                  <ReBarChart data={stats.byType}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                     <XAxis 
                       dataKey="name" 
@@ -98,7 +98,7 @@ export default function AdminFinance() {
                       contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 25px rgba(16, 185, 129, 0.1)' }}
                     />
                     <Bar dataKey="value" radius={[8, 8, 0, 0]} barSize={40}>
-                       {stats.byPurpose.map((_, index) => (
+                       {stats.byType.map((_, index) => (
                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                        ))}
                     </Bar>
@@ -130,14 +130,14 @@ export default function AdminFinance() {
                          <span className="text-xs font-black text-emerald-600">৳</span>
                       </div>
                       <div className="min-w-0 flex-1">
-                         <p className="text-xs font-black text-gray-900 truncate uppercase tracking-tight">{t.purpose}</p>
+                         <p className="text-xs font-black text-gray-900 truncate uppercase tracking-tight">{t.description || t.type || 'Fee'}</p>
                          <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-1">
                             {format(t.createdAt ? (t.createdAt as any).toDate() : new Date(), 'MMM d, h:mm a')}
                          </p>
                       </div>
                       <div className="text-right">
-                         <p className="text-xs font-black text-emerald-600">+{t.amount}</p>
-                         <Badge variant="secondary" className="text-[8px] font-black uppercase mt-1 px-1">{t.paymentMethod}</Badge>
+                         <p className="text-xs font-black text-emerald-600">+৳{t.amount.toLocaleString()}</p>
+                         <Badge variant={t.paymentStatus === 'confirmed' ? 'success' : t.paymentStatus === 'proof_submitted' ? 'warning' : 'secondary'} className="text-[8px] font-black uppercase mt-1 px-1">{(t.paymentStatus || 'unpaid').replace('_', ' ')}</Badge>
                       </div>
                    </div>
                  ))

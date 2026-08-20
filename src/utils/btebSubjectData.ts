@@ -1,3 +1,14 @@
+export const DEPARTMENTS = [
+  { label: 'Civil', value: 'Civil Technology' },
+  { label: 'Computer', value: 'Computer Science & Technology' },
+  { label: 'Electrical', value: 'Electrical Technology' },
+  { label: 'Electronics', value: 'Electronics Technology' },
+  { label: 'Mechanical', value: 'Mechanical Technology' },
+  { label: 'Power', value: 'Power Technology' },
+];
+
+export const SEMESTERS = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th'];
+
 export const BTEB_SUBJECTS = {
   "Civil Technology": {
     code: "64",

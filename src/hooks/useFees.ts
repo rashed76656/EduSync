@@ -1,103 +1,105 @@
 import { useState, useCallback } from 'react';
-import { collection, query, where, getDocs, addDoc, serverTimestamp, orderBy } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, orderBy, serverTimestamp, limit } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuthStore } from '../store/authStore';
-import type { FeeTransaction } from '../types';
+import type { FeeRecord } from '../types';
 import toast from 'react-hot-toast';
 
 export function useFees() {
-  const { user } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
 
-  const fetchStudentFees = useCallback(async (studentId: string) => {
-    if (!user) return [];
-    setIsLoading(true);
-    try {
-      const q = query(
-        collection(db, 'fees'),
-        where('teacherId', '==', user.uid),
-        where('studentId', '==', studentId),
-        orderBy('createdAt', 'desc')
-      );
-      const snapshot = await getDocs(q);
-      const transactions: FeeTransaction[] = [];
-      snapshot.forEach(docSnap => {
-        transactions.push({ id: docSnap.id, ...docSnap.data() } as FeeTransaction);
-      });
-      return transactions;
-    } catch (err) {
-      console.error(err);
-      toast.error('Failed to fetch fee records');
-      return [];
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user]);
+  const { role, department } = useAuthStore();
 
-  const fetchAllFees = useCallback(async (limitCount?: number) => {
-    if (!user) return [];
+  const fetchStudentFees = useCallback(async (studentId: string) => {
+    if (!studentId) return [];
     setIsLoading(true);
     try {
+      const cleanId = studentId.trim();
+
       let q = query(
         collection(db, 'fees'),
-        where('teacherId', '==', user.uid),
+        where('studentId', '==', cleanId),
         orderBy('createdAt', 'desc')
       );
-      if (limitCount) {
-        const { limit } = await import('firebase/firestore');
-        q = query(q, limit(limitCount));
+
+      // If teacher, must filter by department to satisfy security rules
+      if (role === 'teacher') {
+        const isMissing = !department || department.toUpperCase() === 'UNASSIGNED';
+        if (!isMissing) {
+          q = query(
+            collection(db, 'fees'),
+            where('studentId', '==', cleanId),
+            where('department', '==', department),
+            orderBy('createdAt', 'desc')
+          );
+        }
       }
-      const snapshot = await getDocs(q);
-      const transactions: FeeTransaction[] = [];
-      snapshot.forEach(docSnap => {
-        transactions.push({ id: docSnap.id, ...docSnap.data() } as FeeTransaction);
-      });
-      return transactions;
-    } catch (err) {
-      console.error(err);
+
+      const snap = await getDocs(q);
+      const docs = snap.docs.map(d => ({ id: d.id, ...d.data() } as FeeRecord));
+      return docs;
+    } catch (error: any) {
+      console.error('Error fetching student fees:', error);
+      if (error.code === 'permission-denied') {
+        toast.error('Permission Denied: You can only view fees for your department.');
+      } else {
+        toast.error('Failed to load fee history');
+      }
       return [];
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [role, department]);
 
-  const recordFee = useCallback(async (feeData: Omit<FeeTransaction, 'id' | 'createdAt' | 'teacherId'>) => {
-    if (!user) return null;
+  const addFee = async (fee: Omit<FeeRecord, 'id' | 'createdAt'>) => {
     setIsLoading(true);
     try {
       const docRef = await addDoc(collection(db, 'fees'), {
-        ...feeData,
-        teacherId: user.uid,
-        createdAt: serverTimestamp()
+        ...fee,
+        createdAt: serverTimestamp(),
       });
-      toast.success('Payment recorded successfully');
+      toast.success('Fee demand posted to ledger');
       return docRef.id;
-    } catch (err) {
-      console.error(err);
-      toast.error('Failed to record payment');
+    } catch (error) {
+      console.error('Error adding fee:', error);
+      toast.error('Failed to post fee');
       return null;
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  };
 
-  const updateFeeStatus = useCallback(async (transactionId: string, status: FeeTransaction['status']) => {
-    if (!user) return false;
+  const fetchAllFees = useCallback(async (limitCount = 50) => {
     setIsLoading(true);
     try {
-      const { doc, updateDoc } = await import('firebase/firestore');
-      const docRef = doc(db, 'fees', transactionId);
-      await updateDoc(docRef, { status });
-      toast.success(`Status updated to ${status}`);
-      return true;
-    } catch (err) {
-      console.error(err);
-      toast.error('Failed to update status');
-      return false;
+      let q = query(collection(db, 'fees'), orderBy('createdAt', 'desc'), limit(limitCount));
+      
+      const isDepartmentMissing = role === 'teacher' && (!department || department.toUpperCase() === 'UNASSIGNED');
+
+      // If teacher, only fetch departmental fees (matches rules)
+      if (role === 'teacher' && !isDepartmentMissing) {
+        q = query(
+          collection(db, 'fees'),
+          where('department', '==', department),
+          orderBy('createdAt', 'desc'),
+          limit(limitCount)
+        );
+      }
+
+      const snap = await getDocs(q);
+      return snap.docs.map(d => ({ id: d.id, ...d.data() } as FeeRecord));
+    } catch (error) {
+      console.error('Error fetching all fees:', error);
+      return [];
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [role, department]);
 
-  return { isLoading, fetchStudentFees, fetchAllFees, recordFee, updateFeeStatus };
+  return {
+    fetchStudentFees,
+    fetchAllFees,
+    addFee,
+    isLoading
+  };
 }

@@ -37,7 +37,7 @@ export function useAttendance() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [user]);
 
   const fetchAllAttendance = useCallback(async (limitCount?: number) => {
     if (!user) return [];
@@ -112,7 +112,7 @@ export function useAttendance() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [user]);
 
   const saveBatchAttendance = useCallback(async (records: Omit<AttendanceRecord, 'id' | 'createdAt' | 'teacherId'>[]) => {
     if (!user) return false;

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Search, Wallet, User, FileText, CheckCircle, Receipt, ArrowRight, CreditCard } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { Search, Wallet, User, FileText, CheckCircle, Receipt, ArrowRight, CreditCard, AlertCircle } from 'lucide-react';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -10,23 +11,50 @@ import { TableSkeleton } from '../../components/ui/Skeleton';
 import { useStudents } from '../../hooks/useStudents';
 import { useFees } from '../../hooks/useFees';
 import { useAuthStore } from '../../store/authStore';
-import type { Student, FeeTransaction } from '../../types';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
+import type { Student, FeeRecord } from '../../types';
 import profilePic from '../../assets/profile.png';
+import { cn } from '../../utils/cn';
+
+const normalizeDateString = (date: any): string => {
+  if (!date) return '--';
+  if (typeof date === 'string') return date;
+  if (date.toDate) return date.toDate().toISOString().split('T')[0];
+  if (date instanceof Date) return date.toISOString().split('T')[0];
+  return '--';
+};
 
 export default function Fees() {
-  const { user } = useAuthStore();
+  const { user, department, role } = useAuthStore();
   const { students, fetchStudents } = useStudents();
-  const { fetchStudentFees, recordFee, updateFeeStatus, isLoading: isFeesLoading } = useFees();
+  const { fetchStudentFees, addFee, isLoading: isFeesLoading } = useFees();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-  const [transactions, setTransactions] = useState<FeeTransaction[]>([]);
+  const [transactions, setTransactions] = useState<FeeRecord[]>([]);
+
+  const isDepartmentMissing = role === 'teacher' && (!department || department.toUpperCase() === 'UNASSIGNED');
+
+  const handleJoinDepartment = async (dept: string) => {
+    if (!user) return;
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, {
+        department: dept,
+        updatedAt: serverTimestamp()
+      });
+      // Update local store
+      useAuthStore.getState().setProfileData({ department: dept });
+      toast.success(`You have joined the ${dept} Department!`);
+    } catch (err) {
+      toast.error('Failed to update your department');
+    }
+  };
 
   // Fee Form State
   const [amount, setAmount] = useState('');
   const [purpose, setPurpose] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'Mobile Banking' | 'Bank'>('Cash');
-  const [status, setStatus] = useState<FeeTransaction['status']>('Paid');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
@@ -57,14 +85,21 @@ export default function Fees() {
     const numAmount = parseFloat(amount);
     if (isNaN(numAmount) || numAmount <= 0) return;
 
-    const successId = await recordFee({
+    const successId = await addFee({
       studentId: selectedStudent.id,
+      studentName: selectedStudent.name,
+      studentRoll: selectedStudent.roll,
+      studentReg: selectedStudent.registration,
+      department: selectedStudent.department,
+      semester: selectedStudent.semester,
       amount: numAmount,
-      purpose,
-      paymentMethod,
-      status,
-      date,
-      recordedBy: user?.uid || 'unknown'
+      type: purpose as any,
+      description: `${purpose} for ${selectedStudent.semester} Semester`,
+      paymentStatus: 'unpaid',
+      dueDate: new Date(date),
+      teacherId: user?.uid || 'unknown',
+      visibleToStudent: true,
+      visibleToAccountManager: true
     });
 
     if (successId) {
@@ -72,13 +107,35 @@ export default function Fees() {
       setTransactions(history);
       setAmount('');
       setPurpose('');
-      setPaymentMethod('Cash');
-      setStatus('Paid');
     }
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="p-6 space-y-8 animate-in fade-in duration-700">
+      {isDepartmentMissing && (
+        <GlassCard className="p-5 bg-amber-50 border-amber-200 text-amber-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in slide-in-from-top duration-500 shadow-xl shadow-amber-900/5">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-white rounded-2xl shadow-sm border border-amber-100">
+               <AlertCircle className="w-6 h-6 text-amber-600" />
+            </div>
+            <div>
+              <p className="text-sm font-black tracking-tight uppercase">Department Required</p>
+              <p className="text-[10px] font-bold opacity-80 italic max-w-sm leading-relaxed">Your profile is missing a department assignment. This prevents you from viewing student transaction history.</p>
+            </div>
+          </div>
+          
+          {selectedStudent && (
+            <Button 
+              size="sm" 
+              onClick={() => handleJoinDepartment(selectedStudent.department || '')}
+              className="bg-amber-600 hover:bg-amber-700 text-white border-transparent px-6 rounded-xl shadow-lg shadow-amber-200 uppercase font-black text-[10px] tracking-widest h-10 flex gap-2"
+            >
+              <CheckCircle className="w-4 h-4" /> Join {selectedStudent.department} Unit
+            </Button>
+          )}
+        </GlassCard>
+      )}
+
       <div className="flex flex-col sm:flex-row gap-4 sm:justify-between sm:items-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 font-display tracking-tight">Fee Administration</h1>
@@ -135,12 +192,12 @@ export default function Fees() {
             <GlassCard className="p-5 animate-in fade-in slide-in-from-left-6 bg-gradient-to-br from-white/80 to-indigo-50/30 border-primary/10">
               <h2 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-6 flex items-center gap-2">
                 <Wallet className="w-4 h-4" />
-                New Transaction
+                New Fee Demand
               </h2>
               
               <form onSubmit={handleRecordPayment} className="space-y-4">
                 <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Payment Amount</label>
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Fee Amount</label>
                     <div className="relative">
                         <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400">৳</span>
                         <input
@@ -156,7 +213,7 @@ export default function Fees() {
                 </div>
                 
                 <Select
-                  label="Payment Purpose"
+                  label="Fee Type / Purpose"
                   required
                   value={purpose}
                   onChange={(e) => setPurpose(e.target.value)}
@@ -166,38 +223,14 @@ export default function Fees() {
                     { label: 'Admission Fee', value: 'Admission Fee' },
                     { label: 'Exam Fee', value: 'Exam Fee' },
                     { label: 'Fines / Dues', value: 'Fines' },
+                    { label: 'Library Card', value: 'Library Card' },
+                    { label: 'Registration Fee', value: 'Registration Fee' },
                     { label: 'Others', value: 'Other' },
-                  ]}
-                />
-                
-                <Select
-                  label="Payment Method"
-                  required
-                  value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value as any)}
-                  options={[
-                    { label: 'Cash Payment', value: 'Cash' },
-                    { label: 'Mobile (bKash/Nagad)', value: 'Mobile Banking' },
-                    { label: 'Direct Bank Deposit', value: 'Bank' },
-                  ]}
-                />
-
-                <Select
-                  label="Payment Status"
-                  required
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value as any)}
-                  options={[
-                    { label: 'Paid / Received', value: 'Paid' },
-                    { label: 'Due / Pending', value: 'Due' },
-                    { label: 'Processing', value: 'Pending' },
-                    { label: 'Transaction Complete', value: 'Complete' },
-                    { label: 'Failed / Bounced', value: 'Failed' },
                   ]}
                 />
 
                 <Input
-                  label="Transaction Date"
+                  label="Due Date"
                   type="date"
                   required
                   value={date}
@@ -252,18 +285,19 @@ export default function Fees() {
                         </div>
                         <h3 className="text-lg font-bold text-gray-900 font-display tracking-wide">Transaction Statement</h3>
                    </div>
-                  <Badge variant="info" className="h-7 px-4 rounded-full font-bold uppercase text-[10px] tracking-widest">{transactions.length} Payments</Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="info" className="h-7 px-4 rounded-full font-bold uppercase text-[10px] tracking-widest">{transactions.length} Records</Badge>
+                  </div>
                 </div>
                 
                 <div className="overflow-x-auto min-h-[300px]">
                   <table className="w-full text-left text-sm whitespace-nowrap">
                     <thead className="bg-gray-50/30 text-[10px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-100">
                       <tr>
-                        <th className="px-6 py-5">Date</th>
+                        <th className="px-6 py-5">Due Date</th>
                         <th className="px-6 py-5">Description</th>
-                        <th className="px-6 py-5">Method</th>
                         <th className="px-6 py-5">Status</th>
-                        <th className="px-6 py-5 text-right">Credit Amount</th>
+                        <th className="px-6 py-4 text-right">Amount</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 bg-white/20">
@@ -284,35 +318,17 @@ export default function Fees() {
                       ) : (
                         transactions.map(t => (
                           <tr key={t.id} className="hover:bg-primary/5 transition-all duration-300">
-                            <td className="px-6 py-5 text-xs font-bold text-gray-500 uppercase tracking-tighter">{t.date}</td>
-                            <td className="px-6 py-5 font-bold text-gray-900 tracking-tight">{t.purpose}</td>
+                            <td className="px-6 py-5 text-xs font-bold text-gray-500 uppercase tracking-tighter">{normalizeDateString(t.dueDate)}</td>
+                            <td className="px-6 py-5 font-bold text-gray-900 tracking-tight">{t.description}</td>
                             <td className="px-6 py-5">
-                              <span className="inline-flex items-center px-3 py-1 rounded-full bg-white border border-gray-100 text-[10px] font-bold text-gray-500 uppercase tracking-widest shadow-sm">
-                                {t.paymentMethod}
-                              </span>
-                            </td>
-                            <td className="px-6 py-5">
-                               <select
-                                 value={t.status}
-                                 onChange={async (e) => {
-                                   const success = await updateFeeStatus(t.id, e.target.value as any);
-                                   if (success) {
-                                      const history = await fetchStudentFees(selectedStudent.id);
-                                      setTransactions(history);
-                                   }
-                                 }}
-                                 className={`text-[9px] font-black uppercase tracking-widest border-0 bg-transparent focus:ring-0 cursor-pointer rounded-lg px-2 py-1 transition-all ${
-                                    t.status === 'Paid' || t.status === 'Complete' ? 'text-success' : 
-                                    t.status === 'Due' ? 'text-amber-500' :
-                                    t.status === 'Failed' ? 'text-danger' : 'text-primary'
-                                 }`}
-                               >
-                                 <option value="Paid">Paid</option>
-                                 <option value="Complete">Complete</option>
-                                 <option value="Due">Due</option>
-                                 <option value="Pending">Pending</option>
-                                 <option value="Failed">Failed</option>
-                               </select>
+                               <div className={cn("inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm",
+                                 t.paymentStatus === 'confirmed' ? "bg-emerald-50 text-emerald-700 border-emerald-100" :
+                                 t.paymentStatus === 'proof_submitted' ? "bg-amber-50 text-amber-700 border-amber-100" :
+                                 t.paymentStatus === 'rejected' ? "bg-red-50 text-red-700 border-red-100" :
+                                 "bg-gray-50 text-gray-500 border-gray-100"
+                               )}>
+                                 {(t.paymentStatus || 'unpaid').replace('_', ' ')}
+                               </div>
                             </td>
                             <td className="px-6 py-5 text-right font-mono font-bold text-gray-900 text-base">
                               ৳ {t.amount.toLocaleString()}

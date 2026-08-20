@@ -6,14 +6,21 @@ import { useAuthStore } from '../store/authStore';
 
 import { GlassCard } from '../components/ui/GlassCard';
 import { Button } from '../components/ui/Button';
+import { Badge } from '../components/ui/Badge';
 import { useStudents } from '../hooks/useStudents';
 import { useAttendance } from '../hooks/useAttendance';
 import { useFees } from '../hooks/useFees';
 import { useEvents } from '../hooks/useEvents';
 import { useNotices } from '../hooks/useNotices';
-import type { AttendanceRecord, FeeTransaction } from '../types';
+import type { AttendanceRecord, FeeRecord } from '../types';
 
 const COLORS = ['#6366F1', '#8B5CF6', '#06B6D4', '#10B981', '#F59E0B'];
+
+const normalizeDate = (date: any): Date => {
+  if (!date) return new Date();
+  if (date.toDate) return date.toDate();
+  return new Date(date);
+};
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -25,7 +32,7 @@ export default function Dashboard() {
   const { notices } = useNotices();
 
   const [allAttendance, setAllAttendance] = useState<AttendanceRecord[]>([]);
-  const [allFees, setAllFees] = useState<FeeTransaction[]>([]);
+  const [allFees, setAllFees] = useState<FeeRecord[]>([]);
 
   useEffect(() => {
     async function loadDashboardData() {
@@ -54,12 +61,12 @@ export default function Dashboard() {
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
     const monthlyFees = allFees.filter(f => {
-      const d = new Date(f.date);
+      const d = normalizeDate(f.dueDate);
       return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
     }).reduce((sum, f) => sum + f.amount, 0);
 
     const upcomingExams = events.filter(e => {
-       const eventDate = new Date(e.date);
+       const eventDate = normalizeDate(e.date);
        return e.category === 'Exam' && eventDate >= new Date();
     }).length;
 
@@ -107,8 +114,8 @@ export default function Dashboard() {
         content: `New student added:`,
         target: `${s.name} (${s.roll})`,
         teacher: 'You',
-        date: new Date(s.createdAt as any).toLocaleDateString(),
-        rawDate: new Date(s.createdAt as any)
+        date: normalizeDate(s.createdAt).toLocaleDateString(),
+        rawDate: normalizeDate(s.createdAt)
       });
     });
 
@@ -119,8 +126,8 @@ export default function Dashboard() {
         content: `Attendance marked for`,
         target: `${a.subject} (${a.semester})`,
         teacher: 'You',
-        date: a.date,
-        rawDate: new Date(a.date)
+        date: normalizeDate(a.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        rawDate: normalizeDate(a.date)
       });
     });
 
@@ -128,15 +135,15 @@ export default function Dashboard() {
     allFees.slice(0, 5).forEach(f => {
        activities.push({
           id: `f-${f.id}`,
-          content: `Fee payment recorded for`,
-          target: `৳ ${f.amount} (${f.purpose})`,
+          content: `Fee recorded for`,
+          target: `${f.studentName || 'Student'} (৳${f.amount})`,
           teacher: 'You',
-          date: f.date,
-          rawDate: new Date(f.date)
+          date: normalizeDate(f.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          rawDate: normalizeDate(f.dueDate)
        });
     });
 
-    return activities.sort((a, b) => b.rawDate - a.rawDate).slice(0, 8);
+    return activities.sort((a, b) => (b.rawDate?.getTime() || 0) - (a.rawDate?.getTime() || 0)).slice(0, 8);
   }, [students, allAttendance, allFees]);
 
   const urgentNotice = useMemo(() => {
@@ -344,18 +351,5 @@ export default function Dashboard() {
         </div>
       </div>
     </div>
-  );
-}
-
-function Badge({ children, variant = 'info', className = '' }: any) {
-  const styles: any = {
-    info: 'bg-indigo-50 text-indigo-600 border-indigo-100',
-    danger: 'bg-red-50 text-red-600 border-red-100',
-    success: 'bg-emerald-50 text-emerald-600 border-emerald-100',
-  };
-  return (
-    <span className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full border ${styles[variant]} ${className}`}>
-      {children}
-    </span>
   );
 }

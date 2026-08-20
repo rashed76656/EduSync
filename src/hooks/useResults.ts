@@ -35,7 +35,7 @@ export function useResults() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [user]);
   
   const getStudentResultsByStudent = useCallback(async (studentId: string) => {
     if (!user) return [];

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit2, MapPin, Phone, Droplet, Calendar, Shield, CreditCard, ClipboardList, Users, GraduationCap, TrendingUp, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Edit2, MapPin, Phone, Droplet, Calendar, Shield, CreditCard, ClipboardList, Users, GraduationCap, TrendingUp, AlertCircle, CheckCircle2, KeyRound, Globe } from 'lucide-react';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -12,6 +12,7 @@ import { cn } from '../../utils/cn';
 import type { Student, AttendanceRecord, ResultRecord } from '../../types';
 import { format } from 'date-fns';
 import EditStudentModal from './EditStudentModal';
+import SetupPortalModal from './SetupPortalModal';
 import profilePic from '../../assets/profile.png';
 
 export default function StudentDetail() {
@@ -26,6 +27,7 @@ export default function StudentDetail() {
   const [results, setResults] = useState<ResultRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isPortalModalOpen, setIsPortalModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'attendance' | 'results' | 'fees' | 'notes'>('overview');
 
   useEffect(() => {
@@ -106,6 +108,28 @@ export default function StudentDetail() {
           Back to Students
         </button>
         <div className="flex gap-3">
+          {/* Portal Access Button */}
+          {student.hasPortalAccess ? (
+            <Button 
+              variant="secondary" 
+              className="gap-2 bg-emerald-50 border-emerald-200 text-emerald-700 cursor-default hover:bg-emerald-50" 
+              size="sm"
+              disabled
+            >
+              <Globe className="w-4 h-4" />
+              Portal Active
+            </Button>
+          ) : (
+            <Button 
+              variant="secondary" 
+              className="gap-2 bg-sky-50 border-sky-200 text-sky-700 hover:bg-sky-100" 
+              size="sm"
+              onClick={() => setIsPortalModalOpen(true)}
+            >
+              <KeyRound className="w-4 h-4" />
+              Setup Portal
+            </Button>
+          )}
           <Button 
             variant="secondary" 
             className="gap-2 bg-white" 
@@ -150,6 +174,11 @@ export default function StudentDetail() {
             <Badge variant="default">{student.shift} Shift</Badge>
             <Badge variant="default">Group {student.group}</Badge>
             <Badge variant="default">Session {student.session}</Badge>
+            {student.hasPortalAccess && (
+              <Badge variant="success" className="gap-1">
+                <Globe className="w-3 h-3" /> Portal Active
+              </Badge>
+            )}
           </div>
         </div>
       </GlassCard>
@@ -413,6 +442,16 @@ export default function StudentDetail() {
         student={student}
         onSuccess={refreshData}
       />
+
+      {/* Portal Setup Modal */}
+      {!student.hasPortalAccess && (
+        <SetupPortalModal
+          isOpen={isPortalModalOpen}
+          onClose={() => setIsPortalModalOpen(false)}
+          student={student}
+          onSuccess={refreshData}
+        />
+      )}
     </div>
   );
 }

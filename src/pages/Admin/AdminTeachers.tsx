@@ -24,13 +24,15 @@ import { Select } from '../../components/ui/Select';
 import { collection, query, where, getDocs, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useAuthStore } from '../../store/authStore';
-import { createTeacherAccount, deleteTeacherData } from '../../lib/adminService';
+import { createTeacherAccount, deleteTeacherData, createAccountManagerAccount } from '../../lib/adminService';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import type { TeacherProfile } from '../../types';
+import { cn } from '../../utils/cn';
 
 export default function AdminTeachers() {
   const { user: adminUser } = useAuthStore();
+  const [activeTab, setActiveTab] = useState<'teacher' | 'account_manager'>('teacher');
   const [teachers, setTeachers] = useState<TeacherProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -59,16 +61,16 @@ export default function AdminTeachers() {
 
   useEffect(() => {
     fetchTeachers();
-  }, []);
+  }, [activeTab]);
 
   const fetchTeachers = async () => {
     setIsLoading(true);
     try {
-      const q = query(collection(db, 'users'), where('role', '==', 'teacher'));
+      const q = query(collection(db, 'users'), where('role', '==', activeTab));
       const snapshot = await getDocs(q);
       setTeachers(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any)));
     } catch (err) {
-      toast.error('Failed to fetch faculty roster');
+      toast.error(`Failed to fetch ${activeTab === 'teacher' ? 'faculty' : 'account manager'} roster`);
     } finally {
       setIsLoading(false);
     }
@@ -76,8 +78,8 @@ export default function AdminTeachers() {
 
   const filteredTeachers = useMemo(() => {
     return teachers.filter(t => {
-      const matchesSearch = t.displayName.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                           t.email.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesSearch = (t.displayName || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+                           (t.email || '').toLowerCase().includes(searchQuery.toLowerCase());
       const matchesStatus = statusFilter === 'all' || t.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
@@ -89,11 +91,18 @@ export default function AdminTeachers() {
     
     setIsSubmitting(true);
     try {
-      await createTeacherAccount({
-        ...newTeacher,
-        adminUid: adminUser.uid
-      });
-      toast.success('Teacher account provisioned successfully!');
+      if (activeTab === 'teacher') {
+        await createTeacherAccount({
+          ...newTeacher,
+          adminUid: adminUser.uid
+        });
+      } else {
+        await createAccountManagerAccount({
+          ...newTeacher,
+          adminUid: adminUser.uid
+        });
+      }
+      toast.success(`${activeTab === 'teacher' ? 'Teacher' : 'Account Manager'} account provisioned successfully!`);
       setModals(prev => ({ ...prev, add: false }));
       setNewTeacher({ displayName: '', email: '', password: '', department: '', phone: '' });
       fetchTeachers();
@@ -151,18 +160,42 @@ export default function AdminTeachers() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-gray-900 tracking-tight uppercase italic flex items-center gap-3">
-             <Users className="w-8 h-8 text-rose-600" />
-             Faculty Roster
+          <h1 className={cn("text-3xl font-black tracking-tight uppercase italic flex items-center gap-3", 
+            activeTab === 'teacher' ? 'text-rose-600' : 'text-emerald-600'
+          )}>
+             <Users className="w-8 h-8" />
+             {activeTab === 'teacher' ? 'Faculty Roster' : 'Account Managers'}
           </h1>
-          <p className="text-gray-500 mt-1 font-medium italic">Command and control hub for teacher accounts.</p>
+          <p className="text-gray-500 mt-1 font-medium italic">Command and control hub for staff accounts.</p>
         </div>
         <Button 
           onClick={() => setModals(prev => ({ ...prev, add: true }))}
-          className="bg-rose-600 hover:bg-rose-700 shadow-xl shadow-rose-200 h-12 px-8 rounded-2xl font-black uppercase tracking-widest text-[11px] gap-2"
+          className={cn("shadow-xl h-12 px-8 rounded-2xl font-black uppercase tracking-widest text-[11px] gap-2",
+            activeTab === 'teacher' ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-200' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200'
+          )}
         >
-          <Plus className="w-5 h-5" /> Provision Teacher
+          <Plus className="w-5 h-5" /> Provision {activeTab === 'teacher' ? 'Teacher' : 'Account Manager'}
         </Button>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex p-1 bg-white/40 backdrop-blur-md rounded-2xl border border-white/60 w-fit">
+        <button
+          onClick={() => setActiveTab('teacher')}
+          className={cn("px-8 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+            activeTab === 'teacher' ? "bg-white text-rose-600 shadow-lg" : "text-gray-400 hover:text-gray-600"
+          )}
+        >
+          Teachers
+        </button>
+        <button
+          onClick={() => setActiveTab('account_manager')}
+          className={cn("px-8 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+            activeTab === 'account_manager' ? "bg-white text-emerald-600 shadow-lg" : "text-gray-400 hover:text-gray-600"
+          )}
+        >
+          Account Managers
+        </button>
       </div>
 
       {/* Filter Bar */}
@@ -193,16 +226,30 @@ export default function AdminTeachers() {
       </GlassCard>
 
       {/* Teacher Table */}
-      <GlassCard className="overflow-hidden border-white/50 shadow-2xl shadow-rose-500/5">
+      <GlassCard className={cn("overflow-hidden border-white/50 shadow-2xl", 
+        activeTab === 'teacher' ? 'shadow-rose-500/5' : 'shadow-emerald-500/5'
+      )}>
         <div className="overflow-x-auto">
           <table className="w-full text-left">
-            <thead className="bg-rose-50/50 border-b border-rose-100 italic">
+            <thead className={cn("border-b italic", 
+              activeTab === 'teacher' ? 'bg-rose-50/50 border-rose-100' : 'bg-emerald-50/50 border-emerald-100'
+            )}>
               <tr>
-                <th className="px-8 py-5 text-[10px] font-black text-rose-900 uppercase tracking-widest">Faculty Member</th>
-                <th className="px-8 py-5 text-[10px] font-black text-rose-900 uppercase tracking-widest">Department</th>
-                <th className="px-8 py-5 text-[10px] font-black text-rose-900 uppercase tracking-widest text-center">Security Status</th>
-                <th className="px-8 py-5 text-[10px] font-black text-rose-900 uppercase tracking-widest">Onboarded</th>
-                <th className="px-8 py-5 text-[10px] font-black text-rose-900 uppercase tracking-widest text-right">Operations</th>
+                <th className={cn("px-8 py-5 text-[10px] font-black uppercase tracking-widest", 
+                  activeTab === 'teacher' ? 'text-rose-900' : 'text-emerald-900'
+                )}>{activeTab === 'teacher' ? 'Faculty Member' : 'Account Manager'}</th>
+                <th className={cn("px-8 py-5 text-[10px] font-black uppercase tracking-widest", 
+                  activeTab === 'teacher' ? 'text-rose-900' : 'text-emerald-900'
+                )}>Department / Unit</th>
+                <th className={cn("px-8 py-5 text-[10px] font-black uppercase tracking-widest text-center", 
+                  activeTab === 'teacher' ? 'text-rose-900' : 'text-emerald-900'
+                )}>Security Status</th>
+                <th className={cn("px-8 py-5 text-[10px] font-black uppercase tracking-widest", 
+                  activeTab === 'teacher' ? 'text-rose-900' : 'text-emerald-900'
+                )}>Onboarded</th>
+                <th className={cn("px-8 py-5 text-[10px] font-black uppercase tracking-widest text-right", 
+                  activeTab === 'teacher' ? 'text-rose-900' : 'text-emerald-900'
+                )}>Operations</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50 bg-white/30 backdrop-blur-sm">
@@ -220,7 +267,7 @@ export default function AdminTeachers() {
                         <div className="w-12 h-12 rounded-2xl bg-white shadow-md border border-gray-100 flex items-center justify-center text-lg font-black text-rose-600 ring-2 ring-rose-50 overflow-hidden">
                            {teacher.photoURL ? (
                              <img src={teacher.photoURL} alt={teacher.displayName} className="w-full h-full object-cover" />
-                           ) : teacher.displayName[0]}
+                           ) : (teacher.displayName?.[0] || '?')}
                         </div>
                         <div>
                           <p className="text-sm font-black text-gray-900 leading-none">{teacher.displayName}</p>
@@ -248,7 +295,9 @@ export default function AdminTeachers() {
                     <td className="px-8 py-5 text-right space-x-2">
                        <button 
                          onClick={() => { setSelectedTeacher(teacher); setModals(m => ({ ...m, view: true })) }}
-                         className="p-2.5 bg-white text-gray-400 hover:text-rose-600 hover:shadow-lg hover:shadow-rose-100 rounded-xl transition-all border border-gray-100"
+                         className={cn("p-2.5 bg-white text-gray-400 hover:shadow-lg rounded-xl transition-all border border-gray-100", 
+                           activeTab === 'teacher' ? 'hover:text-rose-600 hover:shadow-rose-100' : 'hover:text-emerald-600 hover:shadow-emerald-100'
+                         )}
                         >
                          <Eye className="w-4 h-4" />
                        </button>
@@ -264,7 +313,9 @@ export default function AdminTeachers() {
                        </button>
                        <button 
                          onClick={() => { setSelectedTeacher(teacher); setModals(m => ({ ...m, delete: true })) }}
-                         className="p-2.5 bg-white text-gray-400 hover:text-rose-600 hover:shadow-lg hover:shadow-rose-100 rounded-xl transition-all border border-gray-100"
+                         className={cn("p-2.5 bg-white text-gray-400 hover:shadow-lg rounded-xl transition-all border border-gray-100", 
+                           activeTab === 'teacher' ? 'hover:text-rose-600 hover:shadow-rose-100' : 'hover:text-emerald-600 hover:shadow-emerald-100'
+                         )}
                         >
                          <Trash2 className="w-4 h-4" />
                        </button>
@@ -288,7 +339,7 @@ export default function AdminTeachers() {
       <Modal 
         isOpen={modals.add} 
         onClose={() => setModals(m => ({ ...m, add: false }))} 
-        title="Provision New Teacher Account"
+        title={`Provision New ${activeTab === 'teacher' ? 'Teacher' : 'Account Manager'} Account`}
         className="max-w-xl"
       >
         <form onSubmit={handleAddTeacher} className="space-y-6">
@@ -339,7 +390,15 @@ export default function AdminTeachers() {
           </div>
           <div className="flex gap-3 justify-end pt-4">
              <Button variant="ghost" type="button" onClick={() => setModals(m => ({ ...m, add: false }))} className="uppercase font-black text-[10px] tracking-widest">Abort</Button>
-             <Button type="submit" isLoading={isSubmitting} className="bg-rose-600 hover:bg-rose-700 h-11 px-8 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-rose-200">Grant Credentials</Button>
+             <Button 
+                type="submit" 
+                isLoading={isSubmitting} 
+                className={cn("h-11 px-8 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl", 
+                  activeTab === 'teacher' ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-200' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200'
+                )}
+              >
+                Grant Credentials
+              </Button>
           </div>
         </form>
       </Modal>
@@ -357,7 +416,7 @@ export default function AdminTeachers() {
                  <div className="w-24 h-24 rounded-3xl bg-white shadow-2xl border border-gray-100 flex items-center justify-center text-3xl font-black text-rose-600 ring-4 ring-rose-50 overflow-hidden mb-4">
                     {selectedTeacher.photoURL ? (
                       <img src={selectedTeacher.photoURL} className="w-full h-full object-cover" />
-                    ) : selectedTeacher.displayName[0]}
+                    ) : (selectedTeacher.displayName?.[0] || '?')}
                  </div>
                  <h3 className="text-xl font-black text-gray-900 leading-none tracking-tight">{selectedTeacher.displayName}</h3>
                  <p className="text-xs font-bold text-gray-400 mt-2 lowercase">{selectedTeacher.email}</p>

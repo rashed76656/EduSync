@@ -43,7 +43,7 @@ export function useEvents() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [user]);
 
   const addEvent = async (data: Omit<InstituteEvent, 'id' | 'createdAt' | 'teacherId'>) => {
     if (!user) return;

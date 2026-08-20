@@ -1,20 +1,15 @@
-import { Bell, Megaphone, Clock, ArrowRight } from 'lucide-react';
+import { Bell, Megaphone, Clock, CheckCircle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '../../utils/cn';
 import { useNotifications } from '../../hooks/useNotifications';
-import { useEffect } from 'react';
+import { Badge } from '../ui/Badge';
 
 interface NotificationDropdownProps {
   onClose: () => void;
 }
 
 export default function NotificationDropdown({ onClose }: NotificationDropdownProps) {
-  const { notifications, isLoading, markAllAsRead } = useNotifications();
-
-  useEffect(() => {
-    // When the dropdown opens, we assume the user has "seen" them
-    markAllAsRead();
-  }, []);
+  const { notifications, isLoading, markAllAsRead, readIds, unreadCount } = useNotifications();
 
   const getCategoryStyles = (category: string) => {
     switch (category) {
@@ -32,7 +27,9 @@ export default function NotificationDropdown({ onClose }: NotificationDropdownPr
           <Bell className="w-4 h-4 text-primary" />
           Institute Signals
         </h3>
-        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Recent 10</span>
+        <Badge variant="info" className="h-5 px-2 rounded-lg text-[8px] tracking-widest leading-none flex items-center">
+          {unreadCount} New
+        </Badge>
       </div>
 
       {/* Content */}
@@ -45,45 +42,54 @@ export default function NotificationDropdown({ onClose }: NotificationDropdownPr
         ) : notifications.length === 0 ? (
           <div className="p-12 text-center">
             <div className="w-16 h-16 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-4 border border-gray-100">
-              <Megaphone className="w-8 h-8 text-gray-300" />
+               <Megaphone className="w-8 h-8 text-gray-300" />
             </div>
             <p className="text-sm font-bold text-gray-900">Silence on the Waves</p>
             <p className="text-xs text-gray-400 mt-1">No global broadcasts found.</p>
           </div>
         ) : (
           <div className="divide-y divide-gray-100/50">
-            {notifications.map((n) => (
-              <div key={n.id} className="p-5 hover:bg-white/80 transition-all cursor-default group">
-                <div className="flex gap-4">
-                  <div className={cn(
-                    "w-10 h-10 rounded-2xl border flex items-center justify-center shrink-0 transition-transform group-hover:scale-110",
-                    getCategoryStyles(n.category)
-                  )}>
-                    <Megaphone className="w-5 h-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                       <span className={cn(
-                         "text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md border",
-                         getCategoryStyles(n.category)
-                       )}>
-                         {n.category}
-                       </span>
-                       <h4 className="text-xs font-black text-gray-900 truncate">{n.title}</h4>
+            {notifications.map((n) => {
+              const isUnread = !readIds.has(n.id);
+              return (
+                <div key={n.id} className={cn(
+                  "p-5 hover:bg-white/80 transition-all cursor-default group relative",
+                  isUnread && "bg-indigo-50/30"
+                )}>
+                  {isUnread && (
+                    <div className="absolute top-6 right-6 w-2 h-2 bg-primary rounded-full animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.6)]" />
+                  )}
+                  <div className="flex gap-4">
+                    <div className={cn(
+                      "w-10 h-10 rounded-2xl border flex items-center justify-center shrink-0 transition-transform group-hover:scale-110",
+                      getCategoryStyles(n.category || 'General')
+                    )}>
+                      <Megaphone className="w-5 h-5" />
                     </div>
-                    <p className="text-[11px] text-gray-500 line-clamp-2 leading-relaxed font-medium">
-                      {n.content}
-                    </p>
-                    <div className="flex items-center gap-2 mt-3">
-                       <Clock className="w-3 h-3 text-gray-300" />
-                       <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">
-                         {n.createdAt ? formatDistanceToNow(n.createdAt.toDate(), { addSuffix: true }) : 'Just now'}
-                       </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 mb-1 pr-4">
+                         <span className={cn(
+                           "text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md border",
+                           getCategoryStyles(n.category || 'General')
+                         )}>
+                           {n.category || 'SIGNAL'}
+                         </span>
+                         <h4 className="text-xs font-black text-gray-900 truncate tracking-tight">{n.title}</h4>
+                      </div>
+                      <p className="text-[11px] text-gray-500 line-clamp-2 leading-relaxed font-medium">
+                        {n.message}
+                      </p>
+                      <div className="flex items-center gap-2 mt-3">
+                         <Clock className="w-3 h-3 text-gray-300" />
+                         <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">
+                           {n.createdAt ? formatDistanceToNow(n.createdAt.toDate(), { addSuffix: true }) : 'Just now'}
+                         </span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -91,11 +97,14 @@ export default function NotificationDropdown({ onClose }: NotificationDropdownPr
       {/* Footer */}
       <div className="px-6 py-4 bg-gray-50/50 border-t border-gray-100/50">
         <button 
-          onClick={onClose}
-          className="flex items-center justify-center gap-2 w-full py-2.5 bg-white border border-gray-100 rounded-2xl text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-primary hover:border-primary/20 transition-all group"
+          onClick={() => {
+            markAllAsRead();
+            onClose();
+          }}
+          className="flex items-center justify-center gap-2 w-full py-2.5 bg-white border border-gray-100 rounded-2xl text-[10px] font-black text-primary uppercase tracking-widest hover:bg-primary hover:text-white hover:border-transparent transition-all group shadow-sm active:scale-95"
         >
-          Clear Viewport
-          <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+          Mark all as Read
+          <CheckCircle className="w-3 h-3 group-hover:scale-110 transition-transform" />
         </button>
       </div>
     </div>

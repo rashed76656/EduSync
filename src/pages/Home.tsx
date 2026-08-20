@@ -9,12 +9,30 @@ import { GlassCard } from '../components/ui/GlassCard';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Logo } from '../components/ui/Logo';
+import { GraduationCap } from 'lucide-react';
+
+// ─── Role-based redirect helper ─────────────────────────────
+function redirectByRole(role: string, navigate: ReturnType<typeof useNavigate>) {
+  switch (role) {
+    case 'admin':           navigate('/admin'); break;
+    case 'teacher':         navigate('/dashboard'); break;
+    case 'account_manager': navigate('/account'); break;
+    case 'student':         navigate('/student'); break;
+    default:                navigate('/dashboard');
+  }
+}
 
 export default function Home() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+
+  // Student login state
+  const [studentEmail, setStudentEmail] = useState('');
+  const [secretCode, setSecretCode] = useState('');
+  const [isStudentLoading, setIsStudentLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'staff' | 'student'>('staff');
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
@@ -44,13 +62,7 @@ export default function Home() {
         const userData = userSnap.data();
         await setDoc(userRef, { lastLogin: serverTimestamp() }, { merge: true });
         toast.success(`Welcome back, ${userData.name || user.displayName || 'User'}!`);
-        
-        // Dynamic Redirection
-        if (userData.role === 'admin') {
-          navigate('/admin');
-        } else {
-          navigate('/dashboard');
-        }
+        redirectByRole(userData.role, navigate);
       }
     } catch (error: any) {
       console.error(error);
@@ -78,19 +90,67 @@ export default function Home() {
         
         await setDoc(userRef, { lastLogin: serverTimestamp() }, { merge: true });
         toast.success('Signed in successfully!');
-        
-        // Dynamic Redirection
-        if (userData?.role === 'admin') {
-          navigate('/admin');
-        } else {
-          navigate('/dashboard');
-        }
+        redirectByRole(userData?.role || 'teacher', navigate);
       }
     } catch (error: any) {
       console.error(error);
       toast.error('Invalid email or password');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleStudentLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!studentEmail || !secretCode) {
+      toast.error("Please enter both email and secret code");
+      return;
+    }
+
+    setIsStudentLoading(true);
+    try {
+      // Students use signInWithEmailAndPassword where password = secretCode
+      await signInWithEmailAndPassword(auth, studentEmail, secretCode);
+      
+      if (auth.currentUser) {
+        const userRef = doc(db, 'users', auth.currentUser.uid);
+        const userSnap = await getDoc(userRef);
+        
+        if (!userSnap.exists()) {
+          await auth.signOut();
+          toast.error('Student profile not found. Contact your teacher.');
+          return;
+        }
+        
+        const userData = userSnap.data();
+        
+        // Verify this is actually a student account
+        if (userData.role !== 'student') {
+          toast.error('This is not a student account. Use the staff login above.');
+          await auth.signOut();
+          return;
+        }
+
+        // Check if blocked
+        if (userData.status === 'blocked') {
+          await auth.signOut();
+          toast.error('Your account has been suspended. Contact your teacher.');
+          return;
+        }
+
+        await setDoc(userRef, { lastLogin: serverTimestamp() }, { merge: true });
+        toast.success(`Welcome, ${userData.name || 'Student'}!`);
+        navigate('/student');
+      }
+    } catch (error: any) {
+      console.error(error);
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        toast.error('Invalid email or secret code');
+      } else {
+        toast.error('Login failed. Please try again.');
+      }
+    } finally {
+      setIsStudentLoading(false);
     }
   };
 
@@ -150,80 +210,152 @@ export default function Home() {
       {/* Right Panel - Login Form */}
       <div className="w-full lg:w-[40%] flex items-center justify-center p-8 bg-white/50 backdrop-blur-md relative z-10">
         <GlassCard className="w-full max-w-[420px] p-8 md:p-10 !bg-white/80 !backdrop-blur-[30px] border-white/60 shadow-[0_8px_32px_rgba(30,27,75,0.05)]">
-          <div className="text-center mb-8">
+          <div className="text-center mb-6">
             <div className="lg:hidden flex justify-center mb-4">
               <Logo className="w-12 h-12" />
             </div>
             <h2 className="text-3xl font-display font-bold text-gray-900 mb-2">Welcome Back 👋</h2>
-            <p className="text-gray-500">শিক্ষক হিসেবে লগইন করুন</p>
+            <p className="text-gray-500">EduSync পোর্টালে লগইন করুন</p>
           </div>
 
-          <div className="space-y-6">
-            <Button 
-              variant="secondary" 
-              className="w-full flex items-center justify-center gap-3 h-12 text-gray-700 bg-white hover:bg-gray-50 border-gray-200"
-              onClick={handleGoogleSignIn}
-              isLoading={isLoading}
+          {/* Tab Switcher */}
+          <div className="flex p-1 bg-gray-100/50 rounded-xl mb-6">
+            <button
+              onClick={() => setActiveTab('staff')}
+              className={`flex-1 py-2.5 px-4 rounded-lg text-xs font-bold uppercase tracking-widest transition-all duration-200 ${
+                activeTab === 'staff'
+                  ? 'bg-white text-primary shadow-sm'
+                  : 'text-gray-400 hover:text-gray-600'
+              }`}
             >
-              <svg className="w-5 h-5" viewBox="0 0 24 24">
-                <path
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                  fill="#4285F4"
-                />
-                <path
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                  fill="#34A853"
-                />
-                <path
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                  fill="#FBBC05"
-                />
-                <path
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                  fill="#EA4335"
-                />
-              </svg>
-              Sign in with Google
-            </Button>
+              Staff Login
+            </button>
+            <button
+              onClick={() => setActiveTab('student')}
+              className={`flex-1 py-2.5 px-4 rounded-lg text-xs font-bold uppercase tracking-widest transition-all duration-200 flex items-center justify-center gap-1.5 ${
+                activeTab === 'student'
+                  ? 'bg-white text-sky-600 shadow-sm'
+                  : 'text-gray-400 hover:text-gray-600'
+              }`}
+            >
+              <GraduationCap className="w-3.5 h-3.5" />
+              Student
+            </button>
+          </div>
 
-            <div className="relative flex items-center py-2">
-              <div className="flex-grow border-t border-gray-200"></div>
-              <span className="flex-shrink-0 mx-4 text-sm text-gray-400">অথবা ইমেইল দিয়ে</span>
-              <div className="flex-grow border-t border-gray-200"></div>
-            </div>
+          {/* Staff Login Tab */}
+          {activeTab === 'staff' && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <Button 
+                variant="secondary" 
+                className="w-full flex items-center justify-center gap-3 h-12 text-gray-700 bg-white hover:bg-gray-50 border-gray-200"
+                onClick={handleGoogleSignIn}
+                isLoading={isLoading}
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24">
+                  <path
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                    fill="#4285F4"
+                  />
+                  <path
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                    fill="#34A853"
+                  />
+                  <path
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                    fill="#FBBC05"
+                  />
+                  <path
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                    fill="#EA4335"
+                  />
+                </svg>
+                Sign in with Google
+              </Button>
 
-            <form onSubmit={handleEmailSignIn} className="space-y-4 text-left">
-              <Input
-                type="email"
-                placeholder="teacher@institute.edu.bd"
-                label="Email Address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-              <div>
+              <div className="relative flex items-center py-2">
+                <div className="flex-grow border-t border-gray-200"></div>
+                <span className="flex-shrink-0 mx-4 text-sm text-gray-400">অথবা ইমেইল দিয়ে</span>
+                <div className="flex-grow border-t border-gray-200"></div>
+              </div>
+
+              <form onSubmit={handleEmailSignIn} className="space-y-4 text-left">
                 <Input
-                  type="password"
-                  placeholder="••••••••"
-                  label="Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  type="email"
+                  placeholder="teacher@institute.edu.bd"
+                  label="Email Address"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
                 />
-                <div className="flex justify-end mt-1">
-                  <a href="#" className="text-sm text-primary hover:text-primary-dark select-none">
-                    Forgot Password?
-                  </a>
+                <div>
+                  <Input
+                    type="password"
+                    placeholder="••••••••"
+                    label="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                  <div className="flex justify-end mt-1">
+                    <a href="#" className="text-sm text-primary hover:text-primary-dark select-none">
+                      Forgot Password?
+                    </a>
+                  </div>
+                </div>
+
+                <Button type="submit" variant="primary" className="w-full h-12 mt-2" isLoading={isLoading}>
+                  Sign In
+                </Button>
+              </form>
+            </div>
+          )}
+
+          {/* Student Login Tab */}
+          {activeTab === 'student' && (
+            <div className="space-y-5 animate-in fade-in duration-300">
+              <div className="flex items-center gap-3 p-4 bg-sky-50 rounded-2xl border border-sky-100">
+                <GraduationCap className="w-8 h-8 text-sky-500 shrink-0" />
+                <div>
+                  <p className="text-xs font-bold text-sky-900">Student Portal Access</p>
+                  <p className="text-[10px] text-sky-600 mt-0.5">শিক্ষক প্রদত্ত Email ও Secret Code দিয়ে লগইন করুন</p>
                 </div>
               </div>
 
-              <Button type="submit" variant="primary" className="w-full h-12 mt-2" isLoading={isLoading}>
-                Sign In
-              </Button>
-            </form>
-          </div>
+              <form onSubmit={handleStudentLogin} className="space-y-4 text-left">
+                <Input
+                  type="email"
+                  placeholder="student@example.com"
+                  label="Student Email"
+                  value={studentEmail}
+                  onChange={(e) => setStudentEmail(e.target.value)}
+                  required
+                />
+                <Input
+                  type="password"
+                  placeholder="Enter secret code"
+                  label="Secret Code"
+                  value={secretCode}
+                  onChange={(e) => setSecretCode(e.target.value)}
+                  required
+                />
+                <Button 
+                  type="submit" 
+                  className="w-full h-12 mt-2 bg-sky-600 hover:bg-sky-700 shadow-lg shadow-sky-200" 
+                  isLoading={isStudentLoading}
+                >
+                  Login to Student Portal
+                </Button>
+              </form>
 
-          <div className="mt-10 text-center">
+              <p className="text-[10px] text-center text-gray-400 leading-relaxed">
+                Secret code পেতে আপনার Teacher/Department এর সাথে যোগাযোগ করুন।
+                <br />Code হারিয়ে ফেললে নতুন code generate করতে বলুন।
+              </p>
+            </div>
+          )}
+
+          <div className="mt-8 text-center">
             <p className="text-sm text-gray-400">
               © {new Date().getFullYear()} EduSync Academic Platform
             </p>

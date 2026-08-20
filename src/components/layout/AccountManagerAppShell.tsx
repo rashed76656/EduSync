@@ -1,18 +1,17 @@
 import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
-import Sidebar from './Sidebar.tsx';
+import AccountManagerSidebar from './AccountManagerSidebar';
 import TopBar from './TopBar.tsx';
-import BottomNav from './BottomNav.tsx';
 import { cn } from '../../utils/cn';
 
-export default function AppShell() {
+export default function AccountManagerAppShell() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gradient-to-br from-[#F0F4FF] via-[#F8FAFC] to-[#F3E8FF]">
+    <div className="flex h-screen overflow-hidden bg-gradient-to-br from-[#ECFDF5] via-[#F8FAFC] to-[#F0FDF4]">
       {/* Background Decoratives */}
-      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full mix-blend-multiply filter blur-[80px] pointer-events-none" />
-      <div className="absolute bottom-0 left-[-10%] w-[600px] h-[600px] bg-secondary/5 rounded-full mix-blend-multiply filter blur-[100px] pointer-events-none" />
+      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-500/5 rounded-full mix-blend-multiply filter blur-[80px] pointer-events-none" />
+      <div className="absolute bottom-0 left-[-10%] w-[600px] h-[600px] bg-teal-500/5 rounded-full mix-blend-multiply filter blur-[100px] pointer-events-none" />
 
       {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
@@ -23,15 +22,14 @@ export default function AppShell() {
       )}
 
       {/* Mobile Drawer */}
-      <Sidebar 
-        onClose={() => setIsSidebarOpen(false)} 
-        className={cn(
-          "fixed inset-y-0 left-0 z-50 w-[260px] transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 bg-white",
+      <div className={cn(
+          "fixed inset-y-0 left-0 z-50 w-[260px] transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0",
           isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-        )} 
-      />
+        )}>
+        <AccountManagerSidebar />
+      </div>
       
-      <div className="flex flex-col flex-1 w-full overflow-hidden relative z-10 pb-[80px] lg:pb-0">
+      <div className="flex flex-col flex-1 w-full overflow-hidden relative z-10">
         <TopBar onOpenMenu={() => setIsSidebarOpen(true)} />
         <main className="flex-1 overflow-y-auto overflow-x-hidden p-6 md:p-8 custom-scrollbar">
           <div className="max-w-7xl mx-auto">
@@ -39,8 +37,6 @@ export default function AppShell() {
           </div>
         </main>
       </div>
-
-      <BottomNav />
     </div>
   );
 }

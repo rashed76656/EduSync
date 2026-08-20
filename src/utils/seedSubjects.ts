@@ -4,18 +4,27 @@ import { BTEB_SUBJECTS } from "./btebSubjectData";
 
 async function deleteCollection(collectionRef: any) {
   const snapshot = await getDocs(collectionRef);
-  const batch = writeBatch(db);
-  snapshot.forEach((doc) => {
+  let batch = writeBatch(db);
+  let count = 0;
+  
+  for (const doc of snapshot.docs) {
     batch.delete(doc.ref);
-  });
-  await batch.commit();
+    count++;
+    
+    if (count % 400 === 0) {
+      await batch.commit();
+      batch = writeBatch(db);
+    }
+  }
+  
+  if (count % 400 !== 0) {
+    await batch.commit();
+  }
 }
 
 export async function clearAndSeedSubjects() {
   const subjectsRef = collection(db, "subjects");
-  console.log("Cleaning existing subjects...");
   await deleteCollection(subjectsRef);
-  console.log("Cleaned. Starting fresh seed...");
   return await seedSubjectsToFirestore(true);
 }
 
@@ -28,7 +37,6 @@ export async function seedSubjectsToFirestore(force = false) {
     const existing = await getDocs(q);
     
     if (!existing.empty) {
-      console.log("Subjects already seeded.");
       return { success: false, message: "Subjects already seeded." };
     }
   }
@@ -75,7 +83,6 @@ export async function seedSubjectsToFirestore(force = false) {
       await batch.commit();
     }
 
-    console.log(`✅ Seeded ${count} subjects successfully.`);
     return { success: true, count };
   } catch (error) {
     console.error("Error seeding subjects:", error);

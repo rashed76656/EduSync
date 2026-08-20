@@ -4,7 +4,7 @@ import { GlassCard } from '../../components/ui/GlassCard';
 import { Button } from '../../components/ui/Button';
 import { useAdminStats } from '../../hooks/useAdminStats';
 import { useAuthStore } from '../../store/authStore';
-import { seedInstituteSubjects } from '../../lib/adminService';
+import { seedInstituteSubjects, migrateInstitutionalData } from '../../lib/adminService';
 import { logAdminAction } from '../../lib/adminLogs';
 import { BTEB_SUBJECTS } from '../../utils/btebSubjectData';
 import { formatDistanceToNow } from 'date-fns';
@@ -35,6 +35,28 @@ export default function AdminDashboard() {
       toast.success(`System successfully seeded with ${result.count} subjects!`);
     } catch (err) {
       toast.error('Curriculum seeding failed. Check logs.');
+    } finally {
+      setIsSeeding(false);
+    }
+  };
+
+  const handleMigrateData = async () => {
+    if (!window.confirm('This will migrate legacy Student and Fee data to the new 4-role institutional schema. Continue?')) return;
+    
+    setIsSeeding(true);
+    try {
+      const result = await migrateInstitutionalData();
+      
+      await logAdminAction({
+        adminUid: user?.uid || '',
+        adminEmail: user?.email || '',
+        action: 'SYSTEM_MIGRATION',
+        details: `Migrated ${result.studentCount} students and ${result.feeCount} fees.`
+      });
+
+      toast.success(`Migration Successful! Updated ${result.studentCount} students and ${result.feeCount} fee records.`);
+    } catch (err) {
+      toast.error('Migration failed. Check console for details.');
     } finally {
       setIsSeeding(false);
     }
@@ -139,11 +161,25 @@ export default function AdminDashboard() {
                      className="w-full justify-start gap-4 px-4 py-4 h-auto bg-white hover:bg-rose-50 text-gray-900 border border-rose-100 shadow-sm rounded-2xl group transition-all"
                    >
                      <div className="p-2 bg-rose-100 text-rose-600 rounded-xl group-hover:scale-110 transition-transform">
-                        <UserPlus className="w-4 h-4" />
+                        <Activity className="w-4 h-4" />
                      </div>
                      <div className="text-left">
                         <p className="text-xs font-black uppercase tracking-tight leading-none">Seed Curricula</p>
                         <p className="text-[10px] text-gray-400 font-bold mt-1">Initialize BTEB Regulations</p>
+                     </div>
+                   </Button>
+
+                   <Button 
+                     onClick={handleMigrateData}
+                     disabled={isSeeding}
+                     className="w-full justify-start gap-4 px-4 py-4 h-auto bg-white hover:bg-emerald-50 text-gray-900 border border-emerald-100 shadow-sm rounded-2xl group transition-all"
+                   >
+                     <div className="p-2 bg-emerald-100 text-emerald-600 rounded-xl group-hover:scale-110 transition-transform">
+                        <ShieldAlert className="w-4 h-4" />
+                     </div>
+                     <div className="text-left">
+                        <p className="text-xs font-black uppercase tracking-tight leading-none">Migrate System</p>
+                        <p className="text-[10px] text-gray-400 font-bold mt-1">Upgrade Institutional Data</p>
                      </div>
                    </Button>
                 </div>

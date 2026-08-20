@@ -5,11 +5,13 @@ import { Toaster } from 'react-hot-toast';
 
 import { auth } from './lib/firebase';
 import { useAuthStore } from './store/authStore';
-import { AdminRoute, TeacherRoute, PublicRoute } from './components/shared/RouteGuards';
+import { AdminRoute, TeacherRoute, AccountManagerRoute, StudentRoute, PublicRoute } from './components/shared/RouteGuards';
 import AppShell from './components/layout/AppShell';
 import AdminAppShell from './components/layout/AdminAppShell';
+import AccountManagerAppShell from './components/layout/AccountManagerAppShell';
+import StudentAppShell from './components/layout/StudentAppShell';
 
-// Lazy loading components
+// Lazy loading components — Teacher Pages
 const Home = lazy(() => import('./pages/Home'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const StudentList = lazy(() => import('./pages/Students/StudentList'));
@@ -32,6 +34,18 @@ const AdminProfile = lazy(() => import('./pages/Admin/AdminProfile'));
 const GlobalStudents = lazy(() => import('./pages/Admin/GlobalStudents'));
 const AdminFinance = lazy(() => import('./pages/Admin/AdminFinance'));
 const AdminReports = lazy(() => import('./pages/Admin/AdminReports'));
+
+// Account Manager Pages
+const AccountDashboard = lazy(() => import('./pages/AccountManager/AccountDashboard'));
+const AccountFees = lazy(() => import('./pages/AccountManager/AccountFees'));
+const AccountReports = lazy(() => import('./pages/AccountManager/AccountReports'));
+
+// Student Pages
+const StudentDashboard = lazy(() => import('./pages/Student/StudentDashboard'));
+const StudentAttendance = lazy(() => import('./pages/Student/StudentAttendance'));
+const StudentResults = lazy(() => import('./pages/Student/StudentResults'));
+const StudentFees = lazy(() => import('./pages/Student/StudentFees'));
+const StudentProfile = lazy(() => import('./pages/Student/StudentProfile'));
 
 // Loading Screen
 const LoadingScreen = () => (
@@ -114,6 +128,34 @@ function App() {
             <Route path="/admin/settings" element={<AdminSettings />} />
             <Route path="/admin/profile" element={<AdminProfile />} />
             <Route path="/settings" element={<Settings />} />
+          </Route>
+
+          {/* Account Manager Workspace */}
+          <Route
+            element={
+              <AccountManagerRoute>
+                <AccountManagerAppShell />
+              </AccountManagerRoute>
+            }
+          >
+            <Route path="/account" element={<AccountDashboard />} />
+            <Route path="/account/fees" element={<AccountFees />} />
+            <Route path="/account/reports" element={<AccountReports />} />
+          </Route>
+
+          {/* Student Portal */}
+          <Route
+            element={
+              <StudentRoute>
+                <StudentAppShell />
+              </StudentRoute>
+            }
+          >
+            <Route path="/student" element={<StudentDashboard />} />
+            <Route path="/student/attendance" element={<StudentAttendance />} />
+            <Route path="/student/results" element={<StudentResults />} />
+            <Route path="/student/fees" element={<StudentFees />} />
+            <Route path="/student/profile" element={<StudentProfile />} />
           </Route>
 
           {/* Global Fallback */}

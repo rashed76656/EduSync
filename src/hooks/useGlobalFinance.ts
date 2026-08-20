@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react';
 import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import type { FeeTransaction } from '../types';
+import type { FeeRecord } from '../types';
 
 export function useGlobalFinance() {
-  const [transactions, setTransactions] = useState<FeeTransaction[]>([]);
+  const [transactions, setTransactions] = useState<FeeRecord[]>([]);
   const [stats, setStats] = useState({
     totalRevenue: 0,
     byDept: [] as { name: string, value: number }[],
-    byPurpose: [] as { name: string, value: number }[],
-    recentTransactions: [] as FeeTransaction[]
+    byType: [] as { name: string, value: number }[],
+    recentTransactions: [] as FeeRecord[]
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -17,22 +17,31 @@ export function useGlobalFinance() {
     const q = query(collection(db, 'fees'), orderBy('createdAt', 'desc'));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FeeTransaction));
+      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FeeRecord));
       
-      // Calculate Stats
-      const total = docs.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+      // Calculate Stats — only confirmed payments count as revenue
+      const confirmedDocs = docs.filter(t => t.paymentStatus === 'confirmed');
+      const total = confirmedDocs.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
       
-      // Group by Purpose (more standard)
-      const purposeMap: Record<string, number> = {};
+      // Group by Fee Type (replaces legacy `purpose` field)
+      const typeMap: Record<string, number> = {};
       docs.forEach(t => {
-        purposeMap[t.purpose] = (purposeMap[t.purpose] || 0) + (Number(t.amount) || 0);
+        const label = t.type || t.description || 'Other';
+        typeMap[label] = (typeMap[label] || 0) + (Number(t.amount) || 0);
+      });
+
+      // Group by Department
+      const deptMap: Record<string, number> = {};
+      confirmedDocs.forEach(t => {
+        const dept = t.department || 'Unknown';
+        deptMap[dept] = (deptMap[dept] || 0) + (Number(t.amount) || 0);
       });
 
       setTransactions(docs);
       setStats({
         totalRevenue: total,
-        byDept: [], // We'd need to join with students to get dept, will handle in dashboard if needed
-        byPurpose: Object.entries(purposeMap).map(([name, value]) => ({ name, value })),
+        byDept: Object.entries(deptMap).map(([name, value]) => ({ name, value })),
+        byType: Object.entries(typeMap).map(([name, value]) => ({ name, value })),
         recentTransactions: docs.slice(0, 10)
       });
       setIsLoading(false);
